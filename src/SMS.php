@@ -1,120 +1,87 @@
 <?php
 
-	namespace Fridde;
+namespace Fridde;
 
-	class SMS
+class SMS
+{
+	public $settings;
+	public $options;
+	public $curl;
+	public $response;
+	public $error;
+
+	function __construct($options = ["method" => "send", "message" => null, "to" => "", "from" => null,	"api" => "smsgateway", "settings" => null])
 	{
-		public $settings;
-		public $to;
-		public $message;
-		public $api = "smsgateway";
-		public $curl;
-		public $config_file = "config.ini";
-		public $response;
-		public $error;
+		$this->setConfiguration($options);
+	}
 
-		function __construct()
-		{
-			$default_params = ["message", "to", "from", "api"];
-			$fn_params = array_pad(func_get_args(), count($default_params), null);
-			$this->logg($fn_params);
-			$conf_params = array();
-			foreach($fn_params as $key=>$param){
-				$conf_params[$default_params[$key]] = $param;
+	public function setConfiguration($options)
+	{
+		$api_name = $options["api"] ?? false;
+		$api_settings = $options["settings"]["sms_settings"][$api_name] ??
+		($GLOBALS["SETTINGS"]["sms_settings"][$api_name] ?? false);
+
+		if($api_settings === false){
+			throw new \Exception("No settings given or found in the global scope");
+		}
+		$this->settings = $api_settings;
+		$this->options = $options;
+	}
+
+
+	public function send()
+	{
+		$url = $this->getUrl();
+		$query_fields = $this->prepareQueryFields();
+		$query = http_build_query($query_fields);
+		$headers = $this->prepareHeaders();
+
+		$curl_options = ["url" => $url, "post" => 1, "postfields" => $query, "httpheader" => $headers];
+
+		$this->curl = curl_init();
+		$this->setCurlOptions("send", $curl_options);
+
+		$this->response = curl_exec($this->curl);
+		curl_close($this->curl);
+
+		return $this->response;
+	}
+
+
+	public function prepareQueryFields()
+	{
+		$mandatory_fields = ["46elks" => ["send" => ["from", "to"]], "smsgateway" => ["send" => ["email", "password", "device", "to" => "number", "message", "send_at", "expires_at"]]];
+
+		$ops = $this->options;
+		$method = $ops["method"];
+		$api = $ops["api"];
+		$q = [];
+
+		$fields = $mandatory_fields[$api][$method] ?? false;
+
+		foreach($fields as $key => $value){
+			$op_key = is_int($key) ? $value : $key;
+			$q[$value] = $ops[$op_key] ?? ($this->settings[$value] ?? false);
+			if($q[$value] === false){
+				throw new \Exception("The mandatory field " . $value . " was omitted from the query!");
 			}
-			$this->setConfiguration($conf_params);
 		}
 
-		public function setConfiguration($conf)
-		{
-			/* TODO: Refactor to match the new system using toml-files
-
-
-			if(is_readable($this->config_file)){
-				$ini = parse_ini_file($this->config_file, TRUE);
-				$this->api = (isset($conf["api"])) ? $conf["api"] : $this->api ;
-				if(isset($ini["sms_settings_" . $this->api])){
-					$ini = $ini["sms_settings_" . $this->api];
-					foreach($ini as $setting_name => $setting_value){
-						$this->settings[$this->api][$setting_name] = $setting_value;
-					}
-					$this->message = $conf["message"];
-					$this->to = $conf["to"];
-				}
-				else {
-					throw new \Exception("No sms_settings found in ". $this->config_file);
-				}
-			}
-			else {
-				throw new \Exception("No valid " . $this->config_file . " was found.");
-			}
-			*/
-			throw new \Exception("TODO: Refactor setConfiguration first!");
-		}
-
-		public function send()
-		{
-			$url = $this->getUrl("send");
-			$query_fields = $this->prepareQueryFields();
-			$query = http_build_query($query_fields);
-			$headers = $this->prepareHeaders();
-
-			$this->logg($query_fields);
-
-			$curl_options = ["url" => $url, "post" => 1, "postfields" => $query, "httpheader" => $headers];
-
-			$this->curl = curl_init();
-			$this->setCurlOptions("send", $curl_options);
-
-			$this->response = curl_exec($this->curl);
-			curl_close($this->curl);
-
-			return $this->response;
-		}
-
-
-		public function prepareQueryFields()
-		{
-			$type = @func_get_arg(0);
-			$type = ($type) ? $this->api . "_" . $type : $this->api . "_send";
-			$settings = $this->settings[$this->api];
-
-			switch($type){
-				case "46elks_send":
-				$q["from"] = $this->standardizeMobNr($settings["from"]);
-				$q["to"] = $this->standardizeMobNr($this->to);
-				$q["message"] = $this->message;
-				break;
-
-				case "smsgateway_send":
-				$q["email"] = $settings["email"];
-				$q["password"] = $settings["password"];
-				$q["device"] = $settings["device_id"];
-				$q["number"] = $this->standardizeMobNr($this->to);
-				$q["message"] = $this->message;
-				$q["send_at"] = strtotime($settings["send_at"]);
-				$q["expires_at"] = strtotime($settings["expires_at"]);
-			break;
-
-			default:
-			throw new \Exception("No API endpoint url defined for " . $type);
-		}
 		return $q;
 	}
 
 	public function prepareHeaders()
 	{
-		if(!isset($this->api)){
+		$api = $this->options["api"] ?? false;
+		if(!$api){
 			throw new \Exception("Headers can't be prepared if no API is defined.");
 		}
-		$h = array(); // headers_array
-		$api = $this->api;
+		$h = []; // headers_array
 
 		switch($api){
 
 			case "46elks":
-			$h[] = "Authorization: Basic " . base64_encode($this->username . ":" . $this->password);
-
+			$h[] = "Authorization: Basic " . base64_encode($this->settings["username"] . ":" . $this->settings["password"]);
 			break;
 		}
 		$h[] = "Content-type: application/x-www-form-urlencoded";
@@ -124,29 +91,14 @@
 
 	public function getUrl()
 	{
-		$type = @func_get_arg(0);
-		$type = ($type) ? $this->api . "_" . $type : $this->api . "_send";
-		$url = $this->settings[$this->api]["url"];
+		$endpoints = ["46elks" => "SMS", "smsgateway" => "messages/send"];
 
-		switch($type){
-			case "46elks_send":
-			$url = $this->settings[$this->api]["url"];
-			$url .= "SMS";
-			break;
-
-			case "smsgateway_send":
-			$url = $this->settings[$this->api]["url"];
-			$url .= "messages/send";
-			break;
-
-			default:
-			throw new \Exception("No API endpoint url defined for " . $type);
-		}
+		$url = $this->settings["url"] . $endpoints[$this->api];
 
 		return $url;
 	}
 
-	public function setCurlOptions($type = "send", $options = [])
+	public function setCurlOptions($options = [])
 	{
 		$standard_curl_options = [ "post" => 1, "returntransfer" => 1, "header" => false, "ssl_verifypeer" => false, "timeout" => 10];
 		$curl_options = array_merge($standard_curl_options, $options);
@@ -174,34 +126,37 @@
 		}
 		return $nr;
 	}
-
-	public function logg($data, $infoText = "", $filename = "toolbox.log")
-	{
-		$debug_info = array_reverse(debug_backtrace());
-		$chainFunctions = function($p,$n){
-			$class = (isset($n["class"]) ? "(". $n["class"] . ")" : "");
-			$p.='->' . $class . $n['function'] . ":" . $n["line"];
-			return $p;
-		};
-		$calling_functions = ltrim(array_reduce($debug_info, $chainFunctions), "->");
-		$file = pathinfo(reset($debug_info)["file"], PATHINFO_BASENAME);
-
-		$string = "\n\n####\n--------------------------------\n";
-		$string .= date("Y-m-d H:i:s");
-		$string .= ($infoText != "") ? "\n" . $infoText : "" ;
-		$string .= "\n--------------------------------\n";
-
-		if (is_string($data)) {
-			$string .= $data;
-		}
-		else {
-			$string .= print_r($data, true);
-		}
-		$string .= "\n----------------------------\n";
-		$string .= "Calling stack: " . $calling_functions . "\n";
-		$string .= $file . " produced this log entry";
-
-		file_put_contents($filename, $string, FILE_APPEND);
-	}
-
 }
+/*
+
+DEPRECATED!
+
+public function logg($data, $infoText = "", $filename = "toolbox.log")
+{
+$debug_info = array_reverse(debug_backtrace());
+$chainFunctions = function($p,$n){
+$class = (isset($n["class"]) ? "(". $n["class"] . ")" : "");
+$p.='->' . $class . $n['function'] . ":" . $n["line"];
+return $p;
+};
+$calling_functions = ltrim(array_reduce($debug_info, $chainFunctions), "->");
+$file = pathinfo(reset($debug_info)["file"], PATHINFO_BASENAME);
+
+$string = "\n\n####\n--------------------------------\n";
+$string .= date("Y-m-d H:i:s");
+$string .= ($infoText != "") ? "\n" . $infoText : "" ;
+$string .= "\n--------------------------------\n";
+
+if (is_string($data)) {
+$string .= $data;
+}
+else {
+$string .= print_r($data, true);
+}
+$string .= "\n----------------------------\n";
+$string .= "Calling stack: " . $calling_functions . "\n";
+$string .= $file . " produced this log entry";
+
+file_put_contents($filename, $string, FILE_APPEND);
+}
+*/
