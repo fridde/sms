@@ -97,7 +97,7 @@ class SMS
 
 		return $url;
 	}
-
+	
 	public function setCurlOptions($options = [])
 	{
 		$standard_curl_options = [ "post" => 1, "returntransfer" => 1, "header" => false, "ssl_verifypeer" => false, "timeout" => 10];
@@ -127,36 +127,3 @@ class SMS
 		return $nr;
 	}
 }
-/*
-
-DEPRECATED!
-
-public function logg($data, $infoText = "", $filename = "toolbox.log")
-{
-$debug_info = array_reverse(debug_backtrace());
-$chainFunctions = function($p,$n){
-$class = (isset($n["class"]) ? "(". $n["class"] . ")" : "");
-$p.='->' . $class . $n['function'] . ":" . $n["line"];
-return $p;
-};
-$calling_functions = ltrim(array_reduce($debug_info, $chainFunctions), "->");
-$file = pathinfo(reset($debug_info)["file"], PATHINFO_BASENAME);
-
-$string = "\n\n####\n--------------------------------\n";
-$string .= date("Y-m-d H:i:s");
-$string .= ($infoText != "") ? "\n" . $infoText : "" ;
-$string .= "\n--------------------------------\n";
-
-if (is_string($data)) {
-$string .= $data;
-}
-else {
-$string .= print_r($data, true);
-}
-$string .= "\n----------------------------\n";
-$string .= "Calling stack: " . $calling_functions . "\n";
-$string .= $file . " produced this log entry";
-
-file_put_contents($filename, $string, FILE_APPEND);
-}
-*/
