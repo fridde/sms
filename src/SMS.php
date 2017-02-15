@@ -97,14 +97,14 @@ class SMS
 
 		return $url;
 	}
-	
+
 	public function setCurlOptions($options = [])
 	{
 		$standard_curl_options = [ "post" => 1, "returntransfer" => 1, "header" => false, "ssl_verifypeer" => false, "timeout" => 10];
 		$curl_options = array_merge($standard_curl_options, $options);
 
 		foreach($curl_options as $option_name => $option_value){
-			curl_setopt($this->curl, constant(strtoupper("curlopt_" . $option_name)), $option_value);
+			curl_setopt($this->curl, constant(mb_strtoupper("curlopt_" . $option_name)), $option_value);
 		}
 		return $this;
 	}
