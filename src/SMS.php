@@ -2,6 +2,8 @@
 
 namespace Fridde;
 
+use SmsGateway;
+
 class SMS
 {
 	public $settings;
@@ -10,41 +12,26 @@ class SMS
 	public $response;
 	public $error;
 
-	function __construct($options = ["method" => "send", "message" => null, "to" => "", "from" => null,	"api" => "smsgateway", "settings" => null])
+	function __construct($options = [])
 	{
-		$this->setConfiguration($options);
+		$def_options = ["message" => null, "to" => null, "api" => "smsgateway"];
+		$this->options = $options + $def_options;
+		$this->settings = SETTINGS["sms_settings"][$this->options["api"]];
 	}
-
-	public function setConfiguration($options)
-	{
-		$api_name = $options["api"] ?? false;
-		$api_settings = $options["settings"]["sms_settings"][$api_name] ??
-		($GLOBALS["SETTINGS"]["sms_settings"][$api_name] ?? false);
-
-		if($api_settings === false){
-			throw new \Exception("No settings given or found in the global scope");
-		}
-		$this->settings = $api_settings;
-		$this->options = $options;
-	}
-
 
 	public function send()
 	{
-		$url = $this->getUrl();
-		$query_fields = $this->prepareQueryFields();
-		$query = http_build_query($query_fields);
-		$headers = $this->prepareHeaders();
+		$api = $this->options["api"];
 
-		$curl_options = ["url" => $url, "post" => 1, "postfields" => $query, "httpheader" => $headers];
-
-		$this->curl = curl_init();
-		$this->setCurlOptions("send", $curl_options);
-
-		$this->response = curl_exec($this->curl);
-		curl_close($this->curl);
-
-		return $this->response;
+		if($api == "smsgateway"){
+			$email = $this->settings["email"];
+			$pw = $this->settings["password"];
+			$options["device"] = $this->settings["device"];
+			$options["number"] = $this->options["to"];
+			$options["message"] = $this->options["message"];
+			$SMS = new SmsGateway($email, $pw);
+			return $SMS->sendMessageToNumber($options);
+		}
 	}
 
 
@@ -107,23 +94,5 @@ class SMS
 			curl_setopt($this->curl, constant(mb_strtoupper("curlopt_" . $option_name)), $option_value);
 		}
 		return $this;
-	}
-
-	public function standardizeMobNr($number){
-
-		$nr = $number;
-		$nr = preg_replace("/[^0-9]/", "", $nr);
-		$trim_characters = ["0", "4", "6"]; // we need to trim from left to right order
-		foreach($trim_characters as $char){
-			$nr = ltrim($nr, $char);
-		}
-		if(in_array(substr($nr, 0, 2), ["70", "72", "73", "76"])){
-			$nr = "+46" . $nr;
-		}
-		else if($nr != ""){
-			$this->error = 'The number "' . $number . '" is probably not a swedish mobile number.';
-			$nr = false;
-		}
-		return $nr;
 	}
 }
