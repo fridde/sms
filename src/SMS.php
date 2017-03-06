@@ -2,7 +2,7 @@
 
 namespace Fridde;
 
-use SmsGateway;
+use Fridde\SmsGateway;
 
 class SMS
 {
@@ -14,7 +14,9 @@ class SMS
 
 	function __construct($options = [])
 	{
-		$def_options = ["message" => null, "to" => null, "api" => "smsgateway"];
+		$def_api = SETTINGS["sms_settings"]["default_gateway"];
+		$def_options = ["message" => null, "to" => null, "api" => $def_api];
+		$GLOBALS["CONTAINER"]->get('Logger')->info(gettype($options));
 		$this->options = $options + $def_options;
 		$this->settings = SETTINGS["sms_settings"][$this->options["api"]];
 	}
@@ -30,7 +32,7 @@ class SMS
 			$options["number"] = $this->options["to"];
 			$options["message"] = $this->options["message"];
 			$SMS = new SmsGateway($email, $pw);
-			return $SMS->sendMessageToNumber($options);
+			return $SMS->sendMessage($options);
 		}
 	}
 

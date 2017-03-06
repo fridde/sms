@@ -95,6 +95,9 @@ class SmsGateway
         $return['status'] = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close ($ch);
 
+        array_walk_recursive($return, function(&$val){
+            $val = addslashes($val); 
+        });
         return $return;
     }
 }
