@@ -31,6 +31,12 @@ class SMS
 			$options["device"] = $this->settings["device"];
 			$options["number"] = $this->options["to"];
 			$options["message"] = $this->options["message"];
+			if(!empty($GLOBALS["debug"])){
+				$debug_number = SETTINGS["debug"]["mobil"];
+				$options["message"] = '[' . $options["number"] . '] ' . $options["message"];
+				$options["number"] = $debug_number;
+			}
+
 			$SMS = new SmsGateway($email, $pw);
 			return $SMS->sendMessage($options);
 		}
