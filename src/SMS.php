@@ -15,8 +15,7 @@ class SMS
 	function __construct($options = [])
 	{
 		$def_api = SETTINGS["sms_settings"]["default_gateway"];
-		$def_options = ["message" => null, "to" => null, "api" => $def_api];
-		$GLOBALS["CONTAINER"]->get('Logger')->info(gettype($options));
+		$def_options = ["message" => null, "to" => null, "api" => $def_api];		
 		$this->options = $options + $def_options;
 		$this->settings = SETTINGS["sms_settings"][$this->options["api"]];
 	}
