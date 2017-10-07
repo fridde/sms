@@ -2,9 +2,7 @@
 
 namespace Fridde;
 
-use Fridde\SmsGateway;
-
-class SMS
+class ShortMessageService
 {
 	public $settings;
 	public $options;
@@ -20,7 +18,7 @@ class SMS
 		$this->settings = SETTINGS["sms_settings"][$this->options["api"]];
 	}
 
-	public function send()
+	public function send($debug_number = null)
 	{
 		$api = $this->options["api"];
 
@@ -30,11 +28,10 @@ class SMS
 			$options["device"] = $this->settings["device"];
 			$options["number"] = $this->options["to"];
 			$options["message"] = $this->options["message"];
-			if(!empty($GLOBALS["debug"])){
-				$debug_number = SETTINGS["debug"]["mobil"];
-				$options["message"] = '[' . $options["number"] . '] ' . $options["message"];
-				$options["number"] = $debug_number;
-			}
+			if(!empty($debug_number)){
+                $options["message"] = '[' . $options["number"] . '] ' . $options["message"];
+                $options["number"] = $debug_number;
+            }
 
 			$SMS = new SmsGateway($email, $pw);
 			return $SMS->sendMessage($options);
@@ -51,7 +48,7 @@ class SMS
 		$api = $ops["api"];
 		$q = [];
 
-		$fields = $mandatory_fields[$api][$method] ?? false;
+		$fields = $mandatory_fields[$api][$method];
 
 		foreach($fields as $key => $value){
 			$op_key = is_int($key) ? $value : $key;
