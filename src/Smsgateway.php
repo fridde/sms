@@ -4,9 +4,9 @@ namespace Fridde;
 
 class SmsGateway
 {
-    private $baseUrl = "https://smsgateway.me";
+    private $baseUrl = 'https://smsgateway.me';
 
-    private $default_options = ["send_at" => '+1 minute', "expires_at" => '+12 hours'];
+    private $default_options = ['send_at' => '+1 minute', 'expires_at' => '+12 hours'];
 
     public function __construct($email, $password)
     {
